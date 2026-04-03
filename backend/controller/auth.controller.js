@@ -53,12 +53,15 @@ export const signup = async (req, res) => {
         profilePic: newUser.profilePic,
       });
 
-      try{
-        await sendWelcomeEmail(newUser.email, newUser.fullName, process.env.CLIENT_URL);
-      }catch(error){
+      try {
+        await sendWelcomeEmail(
+          newUser.email,
+          newUser.fullName,
+          process.env.CLIENT_URL,
+        );
+      } catch (error) {
         console.error("Error sending welcome email:", error);
       }
-
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
@@ -67,7 +70,6 @@ export const signup = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
@@ -78,48 +80,49 @@ export const login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
-    
+
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
-    generateToken(user._id, res); 
+    const token = generateToken(user, res);
     res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
+      token, // ← send token in response
     });
-
-  }catch (error) {
+  } catch (error) {
     console.log("Error during login:", error);
     res.status(500).json({ message: "Server error" });
   }
-}
+};
 
 export const logout = (_, res) => {
-  res.cookie("jwt", "", {maxAge: 0});
+  res.cookie("jwt", "", { maxAge: 0 });
   res.status(200).json({ message: "Logged out successfully" });
-}
-
+};
 
 export const UpdateProfile = async (req, res) => {
-  try{
-    const {profilePic} = req.body;
-    if(!profilePic){
-      return res.status(400).json({message: "Profile picture is required"});
+  try {
+    const { profilePic } = req.body;
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile picture is required" });
     }
     const userId = req.user._id;
 
-    const upload_response = await cloudinary.uploader.upload(profilePic)
-    const updatedUser = await User.findByIdAndUpdate(userId, {profilePic: upload_response.secure_url}, {new: true});
+    const upload_response = await cloudinary.uploader.upload(profilePic);
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: upload_response.secure_url },
+      { new: true },
+    );
 
     res.status(200).json(updatedUser);
-
-  }catch(error){
+  } catch (error) {
     console.error("Error updating profile:", error);
     res.status(500).json({ message: "Server error" });
   }
-
-}
+};
