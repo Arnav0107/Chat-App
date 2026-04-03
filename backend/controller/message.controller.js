@@ -68,7 +68,7 @@ export const getChatPatners = async (req, res) => {
 
     const message = await Message.find({
       $or: [{ senderId: LoggedInUserId }, { receiverId: LoggedInUserId }],
-    });
+    }).sort({ createdAt: -1 });
 
     const chatPartnersIds = [
       ...new Set(

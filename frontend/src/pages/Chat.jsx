@@ -12,7 +12,7 @@ export default function Chat() {
 
   useEffect(() => {
     fetchContacts()
-  }, [])
+  }, [selectedContact])
 
   const fetchContacts = async () => {
     try {
@@ -48,6 +48,7 @@ export default function Chat() {
           <ChatArea
             contact={selectedContact}
             onBack={() => setSelectedContact(null)}
+            onMessageSent={fetchContacts}
           />
         ) : (
           <EmptyState />
