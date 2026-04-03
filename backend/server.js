@@ -19,7 +19,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "https://chat-app-4t9v.onrender.com/", // Update with your frontend URL
+    origin: "https://chat-app-sigma-seven-16.vercel.app",
     credentials: true,
   }),
 );
