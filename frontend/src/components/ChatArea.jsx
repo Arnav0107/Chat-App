@@ -1,90 +1,95 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Send,
-  ImageIcon,
-  Phone,
-  Video,
-  ArrowLeft,
-  Loader2,
-} from "lucide-react";
-import { Avatar } from "./Sidebar";
-import { useAuth } from "../context/AuthContext";
-import api from "../lib/api";
+import { useEffect, useRef, useState } from 'react'
+import { Send, ImageIcon, Phone, Video, ArrowLeft, Loader2 } from 'lucide-react'
+import { Avatar } from './Sidebar'
+import { useAuth } from '../context/AuthContext'
+import { getSocket } from '../lib/socket'
+import api from '../lib/api'
 
-export default function ChatArea({ contact, onBack,onMessageSent  }) {
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const { user } = useAuth();
+export default function ChatArea({ contact, onBack }) {
+  const [messages, setMessages] = useState([])
+  const [text, setText] = useState('')
+  const [image, setImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const { user } = useAuth()
 
   useEffect(() => {
-    if (contact) fetchMessages();
-  }, [contact]);
+    if (contact) fetchMessages()
+  }, [contact])
+
+  // Listen for real-time messages
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleNewMessage = (message) => {
+      if (message.senderId === contact._id) {
+        setMessages(prev => [...prev, message])
+      }
+    }
+
+    socket.on('newMessage', handleNewMessage)
+
+    return () => {
+      socket.off('newMessage', handleNewMessage)
+    }
+  }, [contact._id])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const fetchMessages = async () => {
-    setLoading(true);
-    setMessages([]);
+    setLoading(true)
+    setMessages([])
     try {
-      const res = await api.get(`/messages/${contact._id}`);
-      setMessages(
-        Array.isArray(res.data) ? res.data : res.data ? [res.data] : [],
-      );
+      const res = await api.get(`/messages/${contact._id}`)
+      setMessages(Array.isArray(res.data) ? res.data : res.data ? [res.data] : [])
     } catch (err) {
-      console.error("Failed to fetch messages:", err);
+      console.error('Failed to fetch messages:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
     reader.onloadend = () => {
-      setImage(reader.result);
-      setImagePreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
+      setImage(reader.result)
+      setImagePreview(reader.result)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSend = async (e) => {
-    e.preventDefault();
-    if (!text.trim() && !image) return;
-    setSending(true);
+    e.preventDefault()
+    if (!text.trim() && !image) return
+    setSending(true)
     try {
       const res = await api.post(`/messages/send/${contact._id}`, {
         text: text.trim(),
         image,
-      });
-      onMessageSent?.();
-      setMessages((prev) => [...prev, res.data]);
-      setText("");
-      setImage(null);
-      setImagePreview(null);
+      })
+      setMessages(prev => [...prev, res.data])
+      setText('')
+      setImage(null)
+      setImagePreview(null)
     } catch (err) {
-      console.error("Failed to send message:", err);
+      console.error('Failed to send message:', err)
     } finally {
-      setSending(false);
+      setSending(false)
     }
-  };
+  }
 
   const formatTime = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
+    const date = new Date(dateStr)
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  }
 
   return (
     <div className="flex flex-col h-full bg-[oklch(0.13_0.005_260)]">
@@ -96,12 +101,7 @@ export default function ChatArea({ contact, onBack,onMessageSent  }) {
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <Avatar
-          src={contact.profilePic}
-          name={contact.fullName}
-          size="sm"
-          online={false}
-        />
+        <Avatar src={contact.profilePic} name={contact.fullName} size="sm" online={false} />
         <div className="flex-1">
           <p className="text-sm font-semibold text-white">{contact.fullName}</p>
           <p className="text-xs text-[oklch(0.50_0_0)]">{contact.email}</p>
@@ -129,39 +129,32 @@ export default function ChatArea({ contact, onBack,onMessageSent  }) {
           </div>
         ) : (
           messages.map((msg, i) => {
-            const isMine = msg.senderId === user?._id;
+            const isMine = msg.senderId === user?._id
             return (
-              <div
-                key={msg._id || i}
-                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[70%] ${isMine ? "items-end" : "items-start"} flex flex-col gap-1`}
-                >
+              <div key={msg._id || i} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[70%] ${isMine ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                   {msg.image && (
                     <img
                       src={msg.image}
                       alt="attachment"
-                      className={`rounded-xl max-w-xs object-cover ${isMine ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                      className={`rounded-xl max-w-xs object-cover ${isMine ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
                     />
                   )}
                   {msg.text && (
-                    <div
-                      className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        isMine
-                          ? "bg-[oklch(0.55_0.18_250)] text-white rounded-br-sm"
-                          : "bg-[oklch(0.22_0.005_260)] text-white rounded-bl-sm border border-[oklch(0.28_0.005_260)]"
-                      }`}
-                    >
+                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      isMine
+                        ? 'bg-[oklch(0.55_0.18_250)] text-white rounded-br-sm'
+                        : 'bg-[oklch(0.22_0.005_260)] text-white rounded-bl-sm border border-[oklch(0.28_0.005_260)]'
+                    }`}>
                       {msg.text}
                     </div>
                   )}
                   <p className="text-[10px] text-[oklch(0.45_0_0)] px-1">
-                    {msg.createdAt ? formatTime(msg.createdAt) : ""}
+                    {msg.createdAt ? formatTime(msg.createdAt) : ''}
                   </p>
                 </div>
               </div>
-            );
+            )
           })
         )}
         <div ref={messagesEndRef} />
@@ -171,29 +164,17 @@ export default function ChatArea({ contact, onBack,onMessageSent  }) {
       {imagePreview && (
         <div className="px-4 py-2 border-t border-[oklch(0.28_0.005_260)]">
           <div className="relative inline-block">
-            <img
-              src={imagePreview}
-              alt="preview"
-              className="h-20 rounded-lg object-cover"
-            />
+            <img src={imagePreview} alt="preview" className="h-20 rounded-lg object-cover" />
             <button
-              onClick={() => {
-                setImage(null);
-                setImagePreview(null);
-              }}
+              onClick={() => { setImage(null); setImagePreview(null) }}
               className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center"
-            >
-              ✕
-            </button>
+            >✕</button>
           </div>
         </div>
       )}
 
       {/* Input */}
-      <form
-        onSubmit={handleSend}
-        className="px-4 py-4 border-t border-[oklch(0.28_0.005_260)] bg-[oklch(0.17_0.005_260)]"
-      >
+      <form onSubmit={handleSend} className="px-4 py-4 border-t border-[oklch(0.28_0.005_260)] bg-[oklch(0.17_0.005_260)]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -202,16 +183,10 @@ export default function ChatArea({ contact, onBack,onMessageSent  }) {
           >
             <ImageIcon className="w-4 h-4" />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
           <input
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={e => setText(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 px-4 py-2.5 rounded-xl bg-[oklch(0.22_0.005_260)] border border-[oklch(0.28_0.005_260)] text-white placeholder-[oklch(0.40_0_0)] text-sm focus:outline-none focus:border-[oklch(0.65_0.2_250)] transition-colors"
           />
@@ -220,14 +195,10 @@ export default function ChatArea({ contact, onBack,onMessageSent  }) {
             disabled={sending || (!text.trim() && !image)}
             className="p-2.5 rounded-xl bg-[oklch(0.65_0.2_250)] text-white hover:bg-[oklch(0.60_0.2_250)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
-            {sending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </form>
     </div>
-  );
+  )
 }
