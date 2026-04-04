@@ -1,22 +1,19 @@
 import User from "../model/User.js";
 import bcrypt from "bcrypt";
-import { generateToken } from "../lib/utils.js"; // adjust path if needed
-import { sendWelcomeEmail } from "../email/emailHandlers.js"; // adjust path if needed
+import { generateToken } from "../lib/utils.js";
+import { sendWelcomeEmail } from "../email/emailHandlers.js";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
   try {
-    // Validation
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({
-        message: "Password must be at least 6 characters",
-      });
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,26 +21,17 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
-    // Check existing user
     const user = await User.findOne({ email });
-
     if (user) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const newUser = new User({
-      fullName,
-      email,
-      password: hashedPassword,
-    });
+    const newUser = new User({ fullName, email, password: hashedPassword });
 
     if (newUser) {
-      generateToken(newUser, res); // ✅ pass user
-
+      const token = generateToken(newUser, res);
       await newUser.save();
 
       res.status(201).json({
@@ -51,14 +39,11 @@ export const signup = async (req, res) => {
         fullName: newUser.fullName,
         email: newUser.email,
         profilePic: newUser.profilePic,
+        token, // ← added
       });
 
       try {
-        await sendWelcomeEmail(
-          newUser.email,
-          newUser.fullName,
-          process.env.CLIENT_URL,
-        );
+        await sendWelcomeEmail(newUser.email, newUser.fullName, process.env.CLIENT_URL);
       } catch (error) {
         console.error("Error sending welcome email:", error);
       }
@@ -76,23 +61,22 @@ export const login = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
-
     if (!passwordMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
+
     const token = generateToken(user, res);
     res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
-      token, // ← send token in response
+      token,
     });
   } catch (error) {
     console.log("Error during login:", error);
@@ -117,7 +101,7 @@ export const UpdateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: upload_response.secure_url },
-      { new: true },
+      { new: true }
     );
 
     res.status(200).json(updatedUser);
